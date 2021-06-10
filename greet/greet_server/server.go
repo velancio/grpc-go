@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -13,6 +14,44 @@ import (
 )
 
 type server struct{}
+
+func (s server) GreetEveryone(everyoneServer greetpb.GreetService_GreetEveryoneServer) error {
+	for {
+		req, err := everyoneServer.Recv()
+		if err == io.EOF{
+			return nil
+		}
+		if err != nil {
+			log .Fatalf("Couldn't receive bi di stream: %v", err)
+		}
+		firstName := req.GetGreeting().GetFirstName()
+		result := "Hello " + firstName + "!"
+		err = everyoneServer.Send(&greetpb.GreetEveryoneResponse{
+			Result: result,
+		})
+		if err != nil {
+			log .Fatalf("Couldn't send to bi di stream: %v", err)
+		}
+	}
+}
+
+func (s server) LongGreet(greetServer greetpb.GreetService_LongGreetServer) error {
+	result := ""
+	for {
+		req, err:= greetServer.Recv()
+		if err == io.EOF{
+			return greetServer.SendAndClose(&greetpb.LongGreetResponse{
+				Result: result,
+			})
+		}
+		if err != nil {
+			log.Fatalf("Failed to Recieve from client: %v", err)
+		}
+
+		firstName := req.GetGreeting().GetFirstName()
+		result = "Hello " + firstName + "!"
+	}
+}
 
 func (s server) GreetManyTimes(request *greetpb.GreetManyTimesRequest, timesServer greetpb.GreetService_GreetManyTimesServer) error {
 	firstName := request.GetGreeting().GetFirstName()
